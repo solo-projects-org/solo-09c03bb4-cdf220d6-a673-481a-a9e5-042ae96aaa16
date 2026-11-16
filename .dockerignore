@@ -1,0 +1,14 @@
+.git
+.gitignore
+__pycache__
+**/__pycache__
+*.pyc
+.pytest_cache
+tests
+data
+*.db
+*.db-wal
+*.db-shm
+.venv
+venv
+README.md
