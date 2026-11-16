@@ -5,7 +5,7 @@
  * API: never cached. Sampling records live in IndexedDB and uploads must hit
  * the warehouse (with idempotent retries), never a stale cached response.
  */
-const VERSION = "river-sampling-v1";
+const VERSION = "river-sampling-v2";
 const SHELL = [
   "/",
   "/static/app.css",

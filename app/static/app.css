@@ -732,6 +732,106 @@ input[aria-invalid="true"] {
   padding: 0.4rem 0;
 }
 
+.backup {
+  margin-top: 1.5rem;
+  border-top: 1px solid var(--line);
+  padding-top: 1.2rem;
+}
+
+.backup-actions {
+  display: flex;
+  gap: 0.55rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+a.button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  text-decoration: none;
+}
+
+.upload-label {
+  cursor: pointer;
+}
+
+.backup-status {
+  margin-top: 0.7rem;
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+  font-variant-numeric: tabular-nums;
+}
+
+.backup-status[aria-busy="true"] {
+  color: var(--amber);
+}
+
+#backup-error {
+  margin-top: 0.7rem;
+}
+
+.restore-confirm {
+  margin-top: 0.8rem;
+  padding: 0.85rem;
+  border: 1.5px solid #efd3a2;
+  border-radius: 12px;
+  background: var(--amber-bg);
+}
+
+.restore-confirm-copy {
+  font-size: 0.84rem;
+  color: #6a4310;
+}
+
+.recheck {
+  max-width: 1240px;
+  margin: 0 auto clamp(1rem, 3vw, 2.1rem);
+  padding: clamp(1.1rem, 2.6vw, 1.7rem) clamp(1rem, 4vw, 3rem);
+}
+
+.recheck-copy {
+  font-size: 0.86rem;
+  color: var(--ink-soft);
+  margin-bottom: 1rem;
+}
+
+.recheck-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.8rem;
+}
+
+.recheck-item {
+  border: 1.5px solid #eebdb2;
+  border-radius: 12px;
+  background: #fffaf8;
+  padding: 0.85rem;
+  display: grid;
+  gap: 0.7rem;
+}
+
+.recheck-item-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.recheck-item .compare {
+  margin-top: 0;
+  grid-template-columns: 1fr 1fr;
+}
+
+@media (max-width: 640px) {
+  .recheck-item .compare {
+    grid-template-columns: 1fr;
+  }
+}
+
 .toast {
   position: fixed;
   left: 50%;

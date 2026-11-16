@@ -188,8 +188,58 @@
           <p class="warehouse-hint" data-testid="warehouse-hint">联网后下载已有样品，修改并补传。下载会保留本机未上传内容。</p>
           <ul class="warehouse-list" id="warehouse-list" data-testid="warehouse-list"></ul>
         </section>
+
+        <section class="backup" id="backup-panel" data-testid="backup-panel" aria-labelledby="backup-title">
+          <div class="warehouse-heading">
+            <div>
+              <p class="eyebrow">数仓维护</p>
+              <h3 id="backup-title">备份恢复</h3>
+            </div>
+          </div>
+          <p class="warehouse-hint" data-testid="backup-hint">
+            下载本站样品备份（含样品号与版号）；上传本站同版备份可整库恢复。非法备份不会改动现库。
+          </p>
+          <div class="backup-actions">
+            <a class="button secondary small" id="download-backup" data-testid="download-backup" href="/api/backup" download>
+              ⭳ 下载本站备份
+            </a>
+            <label class="button ghost small upload-label" for="backup-file" data-testid="backup-file-label">
+              上传备份并恢复
+              <input id="backup-file" data-testid="backup-file" type="file" accept="application/json,.json" hidden />
+            </label>
+          </div>
+          <p class="backup-status" id="backup-status" data-testid="backup-status" role="status">
+            <span data-testid="backup-era">数仓版本信息载入中…</span>
+          </p>
+          <p class="form-error" id="backup-error" data-testid="backup-error" role="alert" hidden></p>
+          <div class="restore-confirm" id="restore-confirm" data-testid="restore-confirm" hidden>
+            <p class="restore-confirm-copy" data-testid="restore-confirm-copy"></p>
+            <div class="conflict-actions">
+              <button type="button" class="button primary" id="restore-confirm-yes" data-testid="restore-confirm-yes">确认恢复</button>
+              <button type="button" class="button ghost" id="restore-confirm-no" data-testid="restore-confirm-no">取消</button>
+            </div>
+          </div>
+        </section>
       </section>
     </main>
+
+    <section class="panel recheck" id="recheck-panel" data-testid="recheck-panel" aria-labelledby="recheck-title" hidden>
+      <div class="panel-heading">
+        <div>
+          <p class="eyebrow">恢复检测</p>
+          <h2 id="recheck-title">本机记录与恢复后的数仓不一致</h2>
+        </div>
+      </div>
+      <p class="recheck-copy" data-testid="recheck-copy">
+        检测到数仓已恢复。本机的草稿、冲突与未确认提交都已保留，旧“已入仓”标记已撤销。
+        下表对比本机内容与恢复库；逐条选择保留本机并重新补传，或采用恢复库版本。迟到的旧回执不会改变核对结果。
+      </p>
+      <ul class="recheck-list" id="recheck-list" data-testid="recheck-list"></ul>
+      <div class="conflict-actions">
+        <button type="button" class="button secondary" id="recheck-all-local" data-testid="recheck-all-local">全部保留本机并补传</button>
+        <button type="button" class="button ghost" id="recheck-dismiss" data-testid="recheck-dismiss">稍后再处理</button>
+      </div>
+    </section>
 
     <div class="toast" id="toast" data-testid="toast" role="status" aria-live="polite" hidden></div>
     <script src="/static/app.js" defer></script>

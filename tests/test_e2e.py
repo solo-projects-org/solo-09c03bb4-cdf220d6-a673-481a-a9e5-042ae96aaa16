@@ -193,6 +193,7 @@ def test_conflict_keeps_both_copies_survives_reload(page: Page):
                 "ph": 7.0,
                 "base_version": 0,
                 "request_id": f"seed-{sample_no}",
+                "epoch": warehouse_meta()["epoch"],
             },
         )
         assert response.status_code == 201
@@ -214,6 +215,7 @@ def test_conflict_keeps_both_copies_survives_reload(page: Page):
                 "ph": 8.4,
                 "base_version": 1,
                 "request_id": f"other-{sample_no}",
+                "epoch": warehouse_meta()["epoch"],
             },
         )
         assert corrected.status_code == 200
@@ -270,6 +272,7 @@ def test_download_warehouse_sample_and_supplement(page: Page):
                 "ph": 7.8,
                 "base_version": 0,
                 "request_id": f"seed-dl-{sample_no}",
+                "epoch": warehouse_meta()["epoch"],
             },
         )
         assert response.status_code == 201
@@ -355,6 +358,7 @@ def test_conflict_can_adopt_server_copy(page: Page):
                 "ph": 7.2,
                 "base_version": 0,
                 "request_id": f"seed-adopt-{sample_no}",
+                "epoch": warehouse_meta()["epoch"],
             },
         )
         client.put(
@@ -365,6 +369,7 @@ def test_conflict_can_adopt_server_copy(page: Page):
                 "ph": 8.8,
                 "base_version": 1,
                 "request_id": f"other-adopt-{sample_no}",
+                "epoch": warehouse_meta()["epoch"],
             },
         )
 
@@ -399,6 +404,7 @@ def test_download_does_not_clobber_unsent_local_edit(page: Page):
                 "ph": 7.0,
                 "base_version": 0,
                 "request_id": f"seed-safe-{sample_no}",
+                "epoch": warehouse_meta()["epoch"],
             },
         )
 
@@ -419,6 +425,7 @@ def test_download_does_not_clobber_unsent_local_edit(page: Page):
                 "ph": 6.4,
                 "base_version": 1,
                 "request_id": f"other-safe-{sample_no}",
+                "epoch": warehouse_meta()["epoch"],
             },
         )
 
@@ -488,6 +495,7 @@ def test_second_local_create_of_warehouse_sample_shows_conflict(page: Page):
                 "ph": 7.7,
                 "base_version": 0,
                 "request_id": f"seed-create-{sample_no}",
+                "epoch": warehouse_meta()["epoch"],
             },
         )
 
@@ -509,3 +517,390 @@ def test_second_local_create_of_warehouse_sample_shows_conflict(page: Page):
     stored = wait_version(sample_no, 2)
     assert stored["station_no"] == "ST-LOCAL"
     assert stored["ph"] == 6.2
+
+
+# --------------------------------------------------------------------------
+# Backup / restore
+# --------------------------------------------------------------------------
+
+
+def seed(
+    sample_no: str,
+    station: str = "ST-SEED",
+    ph: float = 7.0,
+    utc: str = "2026-11-16T14:00:00Z",
+):
+    with api() as client:
+        response = client.put(
+            f"/api/samples/{sample_no}",
+            json={
+                "station_no": station,
+                "sampled_at": utc,
+                "ph": ph,
+                "base_version": 0,
+                "request_id": f"seed-{sample_no}",
+                "epoch": warehouse_meta()["epoch"],
+            },
+        )
+        assert response.status_code == 201, response.text
+        return response.json()["sample"]
+
+
+def warehouse_meta():
+    with api() as client:
+        return client.get("/api/warehouse").json()
+
+
+def backup_bytes() -> bytes:
+    with api() as client:
+        response = client.get("/api/backup")
+        assert response.status_code == 200
+        return response.content
+
+
+def restore_via_api(raw: bytes | None = None):
+    with api() as client:
+        response = client.post(
+            "/api/backup/restore",
+            content=raw if raw is not None else backup_bytes(),
+            headers={"Content-Type": "application/json"},
+        )
+        assert response.status_code == 200, response.text
+        return response.json()
+
+
+def sample_row(sample_no: str):
+    with api() as client:
+        response = client.get(f"/api/samples/{sample_no}")
+    sample = response.json().get("sample") if response.status_code == 200 else None
+    return response.status_code, sample
+
+
+def upload_backup_file(page: Page, path: str) -> None:
+    page.set_input_files("[data-testid='backup-file']", path)
+    expect(page.locator("[data-testid='restore-confirm']")).to_be_visible(timeout=8000)
+
+
+def test_backup_download_and_restore_from_page(page: Page, tmp_path):
+    sample_no = f"BK-{int(time.time() * 1000)}"
+    seed(sample_no)
+    before = warehouse_meta()
+
+    with page.expect_download() as download_info:
+        page.click("[data-testid='download-backup']")
+    download = download_info.value
+    path = tmp_path / "backup.json"
+    download.save_as(str(path))
+    doc = __import__("json").loads(path.read_text(encoding="utf-8"))
+    assert doc["format"] == "river-sampling-backup"
+    assert any(s["sample_no"] == sample_no for s in doc["samples"])
+
+    upload_backup_file(page, str(path))
+    expect(page.locator("[data-testid='restore-confirm-copy']")).to_contain_text("个样品")
+    page.click("[data-testid='restore-confirm-yes']")
+
+    expect(page.locator("[data-testid='backup-status']")).to_contain_text(
+        f"第 {before['generation'] + 1} 代", timeout=20000
+    )
+    after = warehouse_meta()
+    assert after["generation"] == before["generation"] + 1
+    assert after["epoch"] != before["epoch"]
+    status, row = sample_row(sample_no)
+    assert status == 200
+    assert row["station_no"] == "ST-SEED"
+
+
+def test_invalid_backup_upload_leaves_warehouse_unchanged(page: Page, tmp_path):
+    sample_no = f"BADBK-{int(time.time() * 1000)}"
+    seed(sample_no)
+    before = warehouse_meta()
+
+    bad = tmp_path / "bad.json"
+    bad.write_text(
+        '{"format":"river-sampling-backup","samples":[]}\n', encoding="utf-8"
+    )
+    page.set_input_files("[data-testid='backup-file']", str(bad))
+    expect(page.locator("[data-testid='backup-error']")).to_be_visible(timeout=8000)
+    expect(page.locator("[data-testid='backup-error']")).to_contain_text("未改动现库")
+    assert not page.locator("[data-testid='restore-confirm']").is_visible()
+
+    after = warehouse_meta()
+    assert after["epoch"] == before["epoch"]
+    assert after["generation"] == before["generation"]
+    status, row = sample_row(sample_no)
+    assert status == 200
+    assert row["station_no"] == "ST-SEED"
+
+
+def test_restore_withdraws_stored_mark_and_rechecks(page: Page):
+    stored_no = f"RST-{int(time.time() * 1000)}"
+    draft_no = f"RSTD-{int(time.time() * 1000)}"
+    seed(stored_no)
+
+    # Snapshot the warehouse before this device edits the sample.
+    import json
+
+    from app.backup import checksum_of
+
+    old_doc = json.loads(backup_bytes())
+
+    # Put the stored sample in the warehouse from this device (so the local
+    # record carries a real receipt), plus an unrelated never-uploaded draft.
+    page.click("[data-testid='refresh-warehouse']")
+    page.locator(".warehouse-item", has_text=stored_no).locator("button").click()
+    expect(page.locator("[data-testid='sample-no']")).to_have_value(stored_no)
+    expect(page.locator("[data-testid='status-badge']")).to_have_text("已入仓")
+    page.fill("[data-testid='ph']", "7.55")
+    wait_saved(page)
+    upload(page)
+    wait_badge(page, "已入仓")
+
+    page.click("[data-testid='new-sample']")
+    page.fill("[data-testid='sample-no']", draft_no)
+    page.fill("[data-testid='station-no']", "ST-DRAFT")
+    page.fill("[data-testid='sampled-at']", "2026-11-16T15:10")
+    page.fill("[data-testid='ph']", "6.66")
+    wait_saved(page)
+    expect(page.locator("[data-testid='status-badge']")).to_have_text("待传")
+
+    # An administrator restores a backup taken earlier (same sample number and
+    # version, different content; the era must still change).
+    for item in old_doc["samples"]:
+        if item["sample_no"] == stored_no:
+            assert item["version"] == 1
+    old_doc["checksum"] = checksum_of(old_doc)
+    restore_via_api(json.dumps(old_doc).encode())
+
+    # The page learns the new era by downloading the list.
+    page.click("[data-testid='refresh-warehouse']")
+    expect(page.locator("[data-testid='recheck-panel']")).to_be_visible(timeout=15000)
+    expect(page.locator("[data-testid='recheck-list']")).to_contain_text(stored_no)
+
+    # Old stored mark withdrawn; the local content is untouched.
+    page.locator(".sample-card", has_text=stored_no).click()
+    expect(page.locator("[data-testid='status-badge']")).to_have_text("待核对")
+    expect(page.locator("[data-testid='upload']")).to_be_disabled()
+    expect(page.locator("[data-testid='station-no']")).to_have_value("ST-SEED")
+    expect(page.locator("[data-testid='ph']")).to_have_value("7.55")
+
+    # The never-uploaded draft is kept and still pending; only records with an
+    # old warehouse basis need review.
+    expect(page.locator(".sample-card", has_text=draft_no)).to_contain_text("待传")
+    expect(page.locator(".sample-card", has_text=draft_no)).not_to_contain_text(
+        "待核对"
+    )
+
+    # Diff shows local vs restored values.
+    item = page.locator(".recheck-item", has_text=stored_no)
+    expect(item.locator("[data-testid='recheck-local']")).to_contain_text("7.55")
+    expect(item.locator("[data-testid='recheck-server']")).to_contain_text("7")
+
+    item.locator("[data-action='keep-local']").click()
+    wait_badge(page, "已入仓", timeout=20000)
+    status, row = sample_row(stored_no)
+    assert status == 200
+    assert row["station_no"] == "ST-SEED"
+    assert row["ph"] == 7.55
+    # The recheck upload derives from the restored v1, so exactly one bump.
+    assert row["version"] == 2
+
+    # The preserved draft can still be uploaded normally.
+    page.locator(".sample-card", has_text=draft_no).click()
+    upload(page)
+    wait_badge(page, "已入仓")
+    status, row = sample_row(draft_no)
+    assert status == 200
+    assert row["ph"] == 6.66
+
+
+def test_retry_of_pre_restore_pending_request_is_not_reported_as_success(page: Page):
+    sample_no = f"RTRY-{int(time.time() * 1000)}"
+    seed(sample_no)
+    old_meta = warehouse_meta()
+    old_backup = backup_bytes()  # snapshot: sample at v1
+
+    page.click("[data-testid='refresh-warehouse']")
+    page.locator(".warehouse-item", has_text=sample_no).locator("button").click()
+    expect(page.locator("[data-testid='sample-no']")).to_have_value(sample_no)
+    expect(page.locator("[data-testid='status-badge']")).to_have_text("已入仓")
+    page.fill("[data-testid='ph']", "6.20")
+    wait_saved(page)
+
+    # The write reaches the warehouse but the receipt is lost.
+    def lose_receipt(route):
+        route.fetch()
+        route.abort()
+
+    page.route(f"**/api/samples/{sample_no}", lose_receipt)
+    upload(page)
+    expect(page.locator("[data-testid='status-title']")).to_contain_text(
+        "尚未收到回执", timeout=15000
+    )
+    page.unroute(f"**/api/samples/{sample_no}")
+    assert latest(sample_no)[1]["sample"]["version"] == 2
+
+    # Restore the older snapshot: same sample number, version 1.
+    restored = restore_via_api(old_backup)
+    assert restored["epoch"] != old_meta["epoch"]
+
+    # Retrying the old request must be refused, not replayed as success.
+    page.click("[data-testid='refresh-warehouse']")
+    expect(page.locator("[data-testid='recheck-panel']")).to_be_visible(timeout=15000)
+    page.locator(".sample-card", has_text=sample_no).click()
+    expect(page.locator("[data-testid='status-badge']")).to_have_text("待核对")
+    expect(page.locator("[data-testid='status-title']")).to_contain_text("数仓已恢复")
+
+    page.click("[data-testid='refresh-all']")
+    page.wait_for_timeout(1000)
+    expect(page.locator("[data-testid='status-badge']")).to_have_text("待核对")
+    # The restored warehouse still holds v1, untouched by the stale retry.
+    status, row = sample_row(sample_no)
+    assert status == 200
+    assert row["version"] == 1
+    assert row["ph"] == 7.0
+
+    # Review and re-upload deliberately.
+    page.locator(".recheck-item", has_text=sample_no).locator(
+        "[data-action='keep-local']"
+    ).click()
+    wait_badge(page, "已入仓", timeout=20000)
+    status, row = sample_row(sample_no)
+    assert row["version"] == 2
+    assert row["ph"] == 6.2
+
+
+def test_late_old_receipt_does_not_change_recheck_result(page: Page):
+    sample_no = f"LATE-{int(time.time() * 1000)}"
+    seed(sample_no)
+    old_meta = warehouse_meta()
+    old_backup = backup_bytes()
+
+    page.click("[data-testid='refresh-warehouse']")
+    page.locator(".warehouse-item", has_text=sample_no).locator("button").click()
+    expect(page.locator("[data-testid='sample-no']")).to_have_value(sample_no)
+    expect(page.locator("[data-testid='status-badge']")).to_have_text("已入仓")
+    page.fill("[data-testid='ph']", "5.50")
+    wait_saved(page)
+
+    held = {}
+
+    def hold_request(route):
+        # Keep the request un-sent so the test controls when it completes.
+        held["route"] = route
+
+    page.route(f"**/api/samples/{sample_no}", hold_request)
+    upload(page)
+    page.wait_for_function("() => true")
+    deadline = time.time() + 10
+    while "route" not in held and time.time() < deadline:
+        page.wait_for_timeout(100)
+    assert "route" in held
+
+    restore_via_api(old_backup)
+    page.click("[data-testid='refresh-warehouse']")
+    expect(page.locator("[data-testid='recheck-panel']")).to_be_visible(timeout=15000)
+    expect(page.locator(".sample-card", has_text=sample_no)).to_contain_text("待核对")
+
+    # A pre-restore success receipt finally arrives, carrying the old era.
+    held["route"].fulfill(
+        status=200,
+        headers={
+            "Content-Type": "application/json",
+            "X-Warehouse-Epoch": old_meta["epoch"],
+            "X-Warehouse-Current-Epoch": old_meta["epoch"],
+            "X-Idempotent-Replay": "false",
+        },
+        body=__import__("json").dumps(
+            {
+                "outcome": "updated",
+                "sample": {
+                    "sample_no": sample_no,
+                    "station_no": "ST-SEED",
+                    "sampled_at": "2026-11-16T14:00:00Z",
+                    "ph": 5.5,
+                    "version": 2,
+                    "updated_at": "2026-11-16T16:00:00Z",
+                },
+            }
+        ),
+    )
+    page.unroute(f"**/api/samples/{sample_no}")
+    page.wait_for_timeout(800)
+
+    # The stale receipt must not flip the record to stored, and the local
+    # content kept for review must be unchanged.
+    expect(page.locator(".sample-card", has_text=sample_no)).to_contain_text("待核对")
+    expect(page.locator("[data-testid='status-badge']")).to_have_text("待核对")
+    item = page.locator(".recheck-item", has_text=sample_no)
+    expect(item.locator("[data-testid='recheck-local']")).to_contain_text("5.5")
+    status, row = sample_row(sample_no)
+    assert row["version"] == 1
+    assert row["ph"] == 7.0
+
+
+def test_stale_open_page_cannot_write_on_old_basis_after_restore(page: Page):
+    """A tab that never re-downloaded must not overwrite the restored data."""
+    sample_no = f"STALE-{int(time.time() * 1000)}"
+    seed(sample_no)
+    old_backup = backup_bytes()  # v1, ph 7.0
+
+    page.click("[data-testid='refresh-warehouse']")
+    page.locator(".warehouse-item", has_text=sample_no).locator("button").click()
+    expect(page.locator("[data-testid='status-badge']")).to_have_text("已入仓")
+
+    # Administrator restores the same sample number/version with older data.
+    restore_via_api(old_backup)
+
+    # The open page edits and uploads without re-downloading the list. Its
+    # base is v1, which also exists in the restored database, but it belongs
+    # to the previous era: the server must refuse it.
+    page.fill("[data-testid='ph']", "9.90")
+    wait_saved(page)
+    upload(page)
+
+    # The page is moved into the restore review instead of confirming a write.
+    expect(page.locator("[data-testid='recheck-panel']")).to_be_visible(timeout=20000)
+    expect(page.locator("[data-testid='status-badge']")).to_have_text("待核对")
+    status, row = sample_row(sample_no)
+    assert status == 200
+    assert row["version"] == 1
+    assert row["ph"] == 7.0
+
+    # Nothing was written until the user explicitly chooses, then it applies
+    # exactly once on top of the restored version.
+    page.locator(".recheck-item", has_text=sample_no).locator(
+        "[data-action='keep-local']"
+    ).click()
+    wait_badge(page, "已入仓", timeout=20000)
+    status, row = sample_row(sample_no)
+    assert row["version"] == 2
+    assert row["ph"] == 9.9
+
+
+def test_offline_draft_survives_restore_and_uploads_against_new_era(page: Page):
+    """A draft created entirely offline has no old-era basis; after a restore
+    it may still be uploaded, but only stamped with the restored era."""
+    sample_no = f"OFFR-{int(time.time() * 1000)}"
+    page.context.set_offline(True)
+    page.reload(wait_until="domcontentloaded")
+    fill_sample(page, sample_no, "ST-OFF-R", "2026-11-16T17:20", "6.45")
+    wait_saved(page)
+
+    # A restore happens in the warehouse while this tab is offline.
+    restore_via_api()
+    new_epoch = warehouse_meta()["epoch"]
+
+    page.context.set_offline(False)
+    expect(page.locator("[data-testid='connection-text']")).to_have_text("在线")
+    # Reconnect learns the new era and retries nothing stale.
+    page.wait_for_timeout(800)
+    expect(page.locator("[data-testid='status-badge']")).to_have_text("待传")
+
+    upload(page)
+    wait_badge(page, "已入仓", timeout=20000)
+    status, row = sample_row(sample_no)
+    assert status == 200
+    assert row["version"] == 1
+    assert row["ph"] == 6.45
+    # The write belongs to the restored era, which is still current.
+    assert warehouse_meta()["epoch"] == new_epoch

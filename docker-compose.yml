@@ -9,6 +9,7 @@ services:
       - "${APP_PORT:-8000}:8000"
     environment:
       DATABASE_PATH: /data/samples.db
+      SITE_ID: ${SITE_ID:-river-sampling-site}
     volumes:
       - sampling-data:/data
     restart: unless-stopped
