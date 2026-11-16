@@ -1,0 +1,17 @@
+services:
+  sampling-web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: river-sampling:local
+    container_name: river-sampling
+    ports:
+      - "${APP_PORT:-8000}:8000"
+    environment:
+      DATABASE_PATH: /data/samples.db
+    volumes:
+      - sampling-data:/data
+    restart: unless-stopped
+
+volumes:
+  sampling-data:

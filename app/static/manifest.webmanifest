@@ -1,0 +1,19 @@
+{
+  "name": "河段水质采样记录",
+  "short_name": "水质采样",
+  "description": "野外断网可用的河段水质采样记录与补传",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f5f2ea",
+  "theme_color": "#0d3b34",
+  "lang": "zh-CN",
+  "icons": [
+    {
+      "src": "/static/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

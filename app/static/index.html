@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#0d3b34" />
+    <title>河段水质采样 · 离线记录</title>
+    <link rel="manifest" href="/static/manifest.webmanifest" />
+    <link rel="icon" href="/static/icon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="/static/app.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#editor">跳到采样表单</a>
+    <header class="masthead">
+      <div class="brand">
+        <svg class="brand-mark" viewBox="0 0 40 40" aria-hidden="true">
+          <path d="M4 25c5-6 9 6 14 0s9 6 18 0" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/>
+          <path d="M4 32c5-6 9 6 14 0s9 6 18 0" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" opacity=".55"/>
+          <path d="M20 5c6 7 8 11 8 15a8 8 0 1 1-16 0c0-4 2-8 8-15Z" fill="#7fd1b9" opacity=".9"/>
+        </svg>
+        <div>
+          <p class="eyebrow">野外采样 · 离线优先</p>
+          <h1>河段水质采样记录</h1>
+        </div>
+      </div>
+      <div class="connection" data-testid="connection" data-state="online">
+        <span class="connection-dot" aria-hidden="true"></span>
+        <span class="connection-text" data-testid="connection-text">在线</span>
+        <span class="connection-detail" data-testid="sw-status">正在准备离线缓存…</span>
+      </div>
+    </header>
+
+    <main class="layout">
+      <section class="panel editor" id="editor" aria-labelledby="editor-title">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow" data-testid="editor-mode">新建样品</p>
+            <h2 id="editor-title">采样记录</h2>
+          </div>
+          <button type="button" class="button ghost" id="new-sample" data-testid="new-sample">＋ 新建</button>
+        </div>
+
+        <form id="sample-form" novalidate>
+          <div class="field-grid">
+            <label class="field field-wide">
+              <span>唯一样品号 <em>必填</em></span>
+              <input
+                id="sample-no"
+                name="sample_no"
+                data-testid="sample-no"
+                inputmode="text"
+                autocomplete="off"
+                maxlength="64"
+                placeholder="例如 RIVER-2026-0007"
+                required
+              />
+              <small>创建后不可修改；离线时以本机记录为准。</small>
+            </label>
+
+            <label class="field">
+              <span>站号 <em>必填</em></span>
+              <input
+                id="station-no"
+                name="station_no"
+                data-testid="station-no"
+                autocomplete="off"
+                maxlength="32"
+                placeholder="例如 ST-04"
+              />
+            </label>
+
+            <label class="field">
+              <span>pH <em>0–14</em></span>
+              <input
+                id="ph"
+                name="ph"
+                data-testid="ph"
+                type="number"
+                inputmode="decimal"
+                min="0"
+                max="14"
+                step="0.01"
+                placeholder="7.20"
+              />
+            </label>
+
+            <label class="field field-wide">
+              <span>采样时刻 <em>UTC</em></span>
+              <input
+                id="sampled-at"
+                name="sampled_at"
+                data-testid="sampled-at"
+                type="datetime-local"
+                step="1"
+              />
+              <small>按 UTC 填写，保存时统一换算为 UTC 时刻。</small>
+            </label>
+          </div>
+
+          <p class="form-error" id="form-error" data-testid="form-error" role="alert" hidden></p>
+
+          <div class="editor-status" data-testid="editor-status">
+            <span class="badge" id="status-badge" data-testid="status-badge">新建</span>
+            <div class="status-copy">
+              <p id="status-title" data-testid="status-title">填写样品号后自动保存在本机</p>
+              <p id="status-note" data-testid="status-note" class="muted"></p>
+            </div>
+            <span class="saved-hint" id="saved-hint" data-testid="saved-hint"></span>
+          </div>
+
+          <div class="actions">
+            <button type="submit" class="button primary" id="upload" data-testid="upload">上传到数仓</button>
+            <button type="button" class="button secondary" id="save-draft" data-testid="save-draft">保存到本机</button>
+          </div>
+          <p class="offline-hint" data-testid="offline-hint" hidden>
+            当前离线。可继续录入和修改，上传会排队；联网后自动用同一请求号重试。
+          </p>
+        </form>
+
+        <section class="conflict" id="conflict-panel" data-testid="conflict-panel" aria-labelledby="conflict-title" hidden>
+          <div class="conflict-heading">
+            <span class="conflict-mark" aria-hidden="true">!</span>
+            <div>
+              <h3 id="conflict-title">库内版本已被他人更正</h3>
+              <p>已拒绝覆盖。下面保留本地与数仓两份内容，请选定一份后重提。</p>
+            </div>
+          </div>
+          <div class="compare">
+            <article class="compare-card local" data-testid="conflict-local">
+              <h4>本地内容</h4>
+              <dl>
+                <div><dt>站号</dt><dd data-field="local-station">—</dd></div>
+                <div><dt>UTC 时刻</dt><dd data-field="local-time">—</dd></div>
+                <div><dt>pH</dt><dd data-field="local-ph">—</dd></div>
+              </dl>
+            </article>
+            <article class="compare-card server" data-testid="conflict-server">
+              <h4>数仓内容 <span data-field="server-version"></span></h4>
+              <dl>
+                <div><dt>站号</dt><dd data-field="server-station">—</dd></div>
+                <div><dt>UTC 时刻</dt><dd data-field="server-time">—</dd></div>
+                <div><dt>pH</dt><dd data-field="server-ph">—</dd></div>
+              </dl>
+            </article>
+          </div>
+          <div class="conflict-actions">
+            <button type="button" class="button secondary" id="use-local" data-testid="use-local">保留本地内容并重提</button>
+            <button type="button" class="button ghost" id="use-server" data-testid="use-server">采用数仓版本</button>
+          </div>
+        </section>
+      </section>
+
+      <section class="panel samples" aria-labelledby="samples-title">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">本机台账</p>
+            <h2 id="samples-title">样品状态</h2>
+          </div>
+          <button type="button" class="button ghost" id="refresh-all" data-testid="refresh-all">↻ 重试全部</button>
+        </div>
+
+        <div class="tabs" role="tablist" aria-label="按状态筛选" data-testid="tabs">
+          <button type="button" class="tab active" role="tab" data-filter="all" aria-selected="true">
+            全部 <span data-count="all">0</span>
+          </button>
+          <button type="button" class="tab" role="tab" data-filter="pending" aria-selected="false">
+            待传 <span data-count="pending">0</span>
+          </button>
+          <button type="button" class="tab" role="tab" data-filter="stored" aria-selected="false">
+            已入仓 <span data-count="stored">0</span>
+          </button>
+          <button type="button" class="tab" role="tab" data-filter="conflict" aria-selected="false">
+            冲突 <span data-count="conflict">0</span>
+          </button>
+        </div>
+
+        <ul class="sample-list" id="sample-list" data-testid="sample-list"></ul>
+        <p class="empty" id="empty-list" data-testid="empty-list">还没有本地样品。填写左侧表单即可离线录入。</p>
+
+        <section class="warehouse" aria-labelledby="warehouse-title">
+          <div class="warehouse-heading">
+            <div>
+              <p class="eyebrow">联网补录</p>
+              <h3 id="warehouse-title">数仓已有样品</h3>
+            </div>
+            <button type="button" class="button ghost small" id="refresh-warehouse" data-testid="refresh-warehouse">下载列表</button>
+          </div>
+          <p class="warehouse-hint" data-testid="warehouse-hint">联网后下载已有样品，修改并补传。下载会保留本机未上传内容。</p>
+          <ul class="warehouse-list" id="warehouse-list" data-testid="warehouse-list"></ul>
+        </section>
+      </section>
+    </main>
+
+    <div class="toast" id="toast" data-testid="toast" role="status" aria-live="polite" hidden></div>
+    <script src="/static/app.js" defer></script>
+  </body>
+</html>
