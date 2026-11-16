@@ -3,7 +3,8 @@ FROM python:3.12-slim
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
-    DATABASE_PATH=/data/samples.db
+    DATABASE_PATH=/data/samples.db \
+    SITE_ID=river-site
 
 WORKDIR /app
 

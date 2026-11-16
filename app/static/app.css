@@ -384,6 +384,12 @@ input[aria-invalid="true"] {
   border-color: #eebdb2;
 }
 
+.badge[data-status="rebase"] {
+  background: var(--amber-bg);
+  color: #7a4a11;
+  border-color: #e6c98e;
+}
+
 .badge[data-status="new"] {
   background: #eef1ee;
   color: var(--ink-soft);
@@ -529,6 +535,118 @@ input[aria-invalid="true"] {
   flex-wrap: wrap;
 }
 
+/* Restore / rebase review */
+
+.span-all {
+  grid-column: 1 / -1;
+}
+
+.restore-banner {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  padding: 0.85rem 1.1rem;
+  border-radius: 14px;
+  border: 1.5px solid #e6c98e;
+  background: var(--amber-bg);
+  color: #5d3c0b;
+  font-size: 0.9rem;
+}
+
+.restore-banner-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.restore-banner-copy span {
+  font-size: 0.83rem;
+  color: #7a5a22;
+}
+
+.rebase {
+  margin-top: 1.4rem;
+  padding: 1rem;
+  border: 1.5px solid #e6c98e;
+  border-radius: 14px;
+  background: #fffbf2;
+}
+
+.rebase .conflict-heading h3 {
+  color: #7a4a11;
+}
+
+.conflict-mark.restore {
+  background: var(--amber);
+}
+
+.rebase-note {
+  margin-top: 0.8rem;
+  font-size: 0.83rem;
+  color: var(--ink-soft);
+}
+
+.warehouse-meta {
+  font-size: 0.78rem;
+  color: #7a857f;
+  margin: -0.2rem 0 0.6rem;
+}
+
+.backup {
+  margin-top: 1.2rem;
+  padding-top: 1.2rem;
+  border-top: 1px solid var(--line);
+}
+
+.restore-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.7rem;
+  align-items: end;
+  margin-top: 0.7rem;
+}
+
+.file-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+  flex: 1 1 16rem;
+}
+
+.file-field input[type="file"] {
+  font: inherit;
+  font-size: 0.85rem;
+  padding: 0.45rem;
+  border: 1px dashed var(--line-strong);
+  border-radius: 10px;
+  background: #fff;
+  color: var(--ink);
+}
+
+.restore-result {
+  margin-top: 0.75rem;
+  padding: 0.6rem 0.8rem;
+  border-radius: 10px;
+  font-size: 0.85rem;
+  background: var(--stored-bg);
+  color: #144d38;
+}
+
+.restore-result[data-tone="error"] {
+  background: var(--rust-bg);
+  color: #7d2a1c;
+}
+
+.restore-warning {
+  margin-top: 0.7rem;
+  font-size: 0.78rem;
+  color: var(--amber);
+}
+
 .tabs {
   display: flex;
   gap: 0.3rem;
@@ -601,6 +719,10 @@ input[aria-invalid="true"] {
 
 .sample-card[data-status="stored"] {
   border-left-color: var(--stored);
+}
+
+.sample-card[data-status="rebase"] {
+  border-left-color: var(--amber);
 }
 
 .sample-card[data-status="conflict"] {

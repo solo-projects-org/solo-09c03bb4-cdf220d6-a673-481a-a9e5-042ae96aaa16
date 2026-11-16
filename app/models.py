@@ -11,8 +11,15 @@ from datetime import UTC, datetime
 SAMPLE_NO_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")
 STATION_NO_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._/-]{0,31}$")
 REQUEST_ID_RE = re.compile(r"^[A-Za-z0-9._:-]{8,128}$")
+UTC_SECOND_RE = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
+CHECKSUM_RE = re.compile(r"^[0-9a-f]{64}$")
 
 MAX_VERSION = 2_147_483_647
+MAX_EPOCH = 2_147_483_647
+
+BACKUP_FORMAT = "river-sampling-backup"
+BACKUP_FORMAT_VERSION = 1
+MAX_BACKUP_SAMPLES = 100_000
 
 
 class ValidationError(ValueError):
@@ -81,6 +88,26 @@ def parse_version(value: object) -> int:
         raise ValidationError("base_version must be an integer")
     if value < 0 or value > MAX_VERSION:
         raise ValidationError("base_version is out of range")
+    return value
+
+
+def parse_epoch(value: object) -> int:
+    """The warehouse epoch a client edited against (0 = never seen a warehouse)."""
+    if value is None:
+        return 0
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise ValidationError("base_epoch must be an integer")
+    if value < 0 or value > MAX_EPOCH:
+        raise ValidationError("base_epoch is out of range")
+    return value
+
+
+def parse_generation(value: object) -> str:
+    """Opaque restore generation; clients echo it back in backups and uploads."""
+    if value is None:
+        return ""
+    if not isinstance(value, str) or len(value) > 128:
+        raise ValidationError("generation must be a string of at most 128 chars")
     return value
 
 

@@ -31,6 +31,14 @@
     </header>
 
     <main class="layout">
+      <div class="restore-banner span-all" id="restore-banner" data-testid="restore-banner" role="status" hidden>
+        <div class="restore-banner-copy">
+          <strong id="restore-banner-title" data-testid="restore-banner-title">数仓已被恢复，本机内容需要核对</strong>
+          <span id="restore-banner-text" data-testid="restore-banner-text"></span>
+        </div>
+        <button type="button" class="button ghost" id="restore-review-jump" data-testid="restore-review-jump">查看差异</button>
+      </div>
+
       <section class="panel editor" id="editor" aria-labelledby="editor-title">
         <div class="panel-heading">
           <div>
@@ -117,6 +125,45 @@
           </p>
         </form>
 
+        <section class="rebase" id="rebase-panel" data-testid="rebase-panel" aria-labelledby="rebase-title" hidden>
+          <div class="conflict-heading">
+            <span class="conflict-mark restore" aria-hidden="true">↺</span>
+            <div>
+              <h3 id="rebase-title">数仓已从备份恢复，本机内容尚未确认</h3>
+              <p>
+                恢复前的页面与未确认请求不能凭旧依据写入恢复库。下面保留本机草稿与恢复库内容，
+                请选定后重新补传。
+              </p>
+            </div>
+          </div>
+          <div class="compare">
+            <article class="compare-card local" data-testid="rebase-local">
+              <h4>本机内容</h4>
+              <dl>
+                <div><dt>站号</dt><dd data-field="rebase-local-station">—</dd></div>
+                <div><dt>UTC 时刻</dt><dd data-field="rebase-local-time">—</dd></div>
+                <div><dt>pH</dt><dd data-field="rebase-local-ph">—</dd></div>
+                <div><dt>本机状态</dt><dd data-field="rebase-local-state">—</dd></div>
+              </dl>
+            </article>
+            <article class="compare-card server" data-testid="rebase-server">
+              <h4>恢复库内容 <span data-field="rebase-server-version"></span></h4>
+              <dl>
+                <div><dt>站号</dt><dd data-field="rebase-server-station">—</dd></div>
+                <div><dt>UTC 时刻</dt><dd data-field="rebase-server-time">—</dd></div>
+                <div><dt>pH</dt><dd data-field="rebase-server-ph">—</dd></div>
+                <div><dt>恢复时间</dt><dd data-field="rebase-server-restored">—</dd></div>
+              </dl>
+            </article>
+          </div>
+          <p class="rebase-note" data-testid="rebase-note" id="rebase-note"></p>
+          <div class="conflict-actions">
+            <button type="button" class="button primary" id="rebase-keep-local" data-testid="rebase-keep-local">以本机内容重传</button>
+            <button type="button" class="button secondary" id="rebase-take-server" data-testid="rebase-take-server">采用恢复库内容</button>
+            <button type="button" class="button ghost" id="rebase-keep-unresolved" data-testid="rebase-keep-unresolved">暂不处理，保留草稿</button>
+          </div>
+        </section>
+
         <section class="conflict" id="conflict-panel" data-testid="conflict-panel" aria-labelledby="conflict-title" hidden>
           <div class="conflict-heading">
             <span class="conflict-mark" aria-hidden="true">!</span>
@@ -172,6 +219,9 @@
           <button type="button" class="tab" role="tab" data-filter="conflict" aria-selected="false">
             冲突 <span data-count="conflict">0</span>
           </button>
+          <button type="button" class="tab" role="tab" data-filter="rebase" aria-selected="false">
+            需核对 <span data-count="rebase">0</span>
+          </button>
         </div>
 
         <ul class="sample-list" id="sample-list" data-testid="sample-list"></ul>
@@ -186,7 +236,32 @@
             <button type="button" class="button ghost small" id="refresh-warehouse" data-testid="refresh-warehouse">下载列表</button>
           </div>
           <p class="warehouse-hint" data-testid="warehouse-hint">联网后下载已有样品，修改并补传。下载会保留本机未上传内容。</p>
+          <p class="warehouse-meta" data-testid="warehouse-meta" id="warehouse-meta"></p>
           <ul class="warehouse-list" id="warehouse-list" data-testid="warehouse-list"></ul>
+        </section>
+
+        <section class="warehouse backup" aria-labelledby="backup-title" id="backup-panel" data-testid="backup-panel">
+          <div class="warehouse-heading">
+            <div>
+              <p class="eyebrow">数仓备份</p>
+              <h3 id="backup-title">备份与恢复</h3>
+            </div>
+            <button type="button" class="button ghost small" id="download-backup" data-testid="download-backup">下载本站备份</button>
+          </div>
+          <p class="warehouse-hint" data-testid="backup-hint">
+            备份为本站全部样品（含样品号与版号）。上传同站、同格式的备份会整体替换数仓；非法备份不会改动现库。
+          </p>
+          <div class="restore-form">
+            <label class="file-field">
+              <span>选择本站备份文件（.json）</span>
+              <input type="file" id="restore-file" data-testid="restore-file" accept="application/json,.json" />
+            </label>
+            <button type="button" class="button primary" id="restore-upload" data-testid="restore-upload" disabled>上传并恢复数仓</button>
+          </div>
+          <p class="restore-result" data-testid="restore-result" id="restore-result" hidden></p>
+          <p class="restore-warning">
+            恢复会使本机所有“已入仓”标记失效；采样台上未确认的草稿会保留，需由你核对差异后重新补传。
+          </p>
         </section>
       </section>
     </main>
